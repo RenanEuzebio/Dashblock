@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>VPS Home Directory</title>
+    </head>
+    <body>
+        <h1>VPS Home Directory Listing</h1>
+        <button id="fetchBtn">Fetch Home Directory</button>
+        <ul id="dirList"></ul>
+
+        <script>
+            document
+                .getElementById("fetchBtn")
+                .addEventListener("click", async () => {
+                    try {
+                        const res = await fetch(
+                            "http://127.0.0.1:8000/list-home",
+                        );
+                        if (!res.ok)
+                            throw new Error(
+                                `HTTP error! status: ${res.status}`,
+                            );
+                        const data = await res.json();
+                        const listEl = document.getElementById("dirList");
+                        listEl.innerHTML = "";
+                        data.home_dir_listing.forEach((item) => {
+                            const li = document.createElement("li");
+                            li.textContent = item;
+                            listEl.appendChild(li);
+                        });
+                    } catch (err) {
+                        alert("Error fetching directory list: " + err.message);
+                    }
+                });
+        </script>
+    </body>
+</html>
