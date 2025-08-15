@@ -3,37 +3,197 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>VPS Home Directory</title>
+        <title>VPS Directory Navigator</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .current-path {
+                background: #f5f5f5;
+                padding: 10px;
+                border-radius: 5px;
+                margin: 10px 0;
+                font-family: monospace;
+            }
+            .navigation {
+                margin: 20px 0;
+            }
+            .directory-list {
+                list-style: none;
+                padding: 0;
+            }
+            .directory-item {
+                padding: 8px;
+                margin: 2px 0;
+                border: 1px solid #ddd;
+                border-radius: 3px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+            }
+            .directory-item:hover {
+                background: #f0f0f0;
+            }
+            .directory-item.directory {
+                background: #e8f4f8;
+            }
+            .directory-item.file {
+                background: #fff;
+                cursor: default;
+            }
+            .icon {
+                margin-right: 8px;
+                font-weight: bold;
+            }
+            .back-button {
+                background: #007cba;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 3px;
+                cursor: pointer;
+                margin-right: 10px;
+            }
+            .back-button:hover {
+                background: #005a85;
+            }
+            .refresh-button {
+                background: #28a745;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 3px;
+                cursor: pointer;
+            }
+            .refresh-button:hover {
+                background: #1e7e34;
+            }
+        </style>
     </head>
     <body>
-        <h1>VPS Home Directory Listing</h1>
-        <button id="fetchBtn">Fetch Home Directory</button>
-        <ul id="dirList"></ul>
+        <h1>VPS Directory Navigator</h1>
+        
+        <div class="current-path">
+            Current Path: <span id="currentPath">~</span>
+        </div>
+        
+        <div class="navigation">
+            <button id="backBtn" class="back-button">← Back</button>
+            <button id="refreshBtn" class="refresh-button">Refresh</button>
+        </div>
+        
+        <ul id="dirList" class="directory-list"></ul>
 
         <script>
-            document
-                .getElementById("fetchBtn")
-                .addEventListener("click", async () => {
-                    try {
-                        const res = await fetch(
-                            "http://127.0.0.1:8000/list-home",
-                        );
-                        if (!res.ok)
-                            throw new Error(
-                                `HTTP error! status: ${res.status}`,
-                            );
-                        const data = await res.json();
-                        const listEl = document.getElementById("dirList");
-                        listEl.innerHTML = "";
-                        data.home_dir_listing.forEach((item) => {
-                            const li = document.createElement("li");
-                            li.textContent = item;
-                            listEl.appendChild(li);
-                        });
-                    } catch (err) {
-                        alert("Error fetching directory list: " + err.message);
-                    }
-                });
+            let currentPath = "~";
+
+            async function loadDirectory(path = "~") {
+                try {
+                    const res = await fetch(
+                        `http://127.0.0.1:8000/list-directory?path=${encodeURIComponent(path)}`
+                    );
+                    if (!res.ok)
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    
+                    const data = await res.json();
+                    currentPath = data.current_path;
+                    
+                    document.getElementById("currentPath").textContent = currentPath;
+                    
+                    const listEl = document.getElementById("dirList");
+                    listEl.innerHTML = "";
+                    
+                    data.entries.forEach((item) => {
+                        const li = document.createElement("li");
+                        li.className = `directory-item ${item.is_directory ? 'directory' : 'file'}`;
+                        
+                        const icon = document.createElement("span");
+                        icon.className = "icon";
+                        icon.textContent = item.is_directory ? "📁" : "📄";
+                        
+                        const name = document.createElement("span");
+                        name.textContent = item.name;
+                        
+                        li.appendChild(icon);
+                        li.appendChild(name);
+                        
+                        if (item.is_directory) {
+                            li.addEventListener("click", () => {
+                                changeDirectory(item.name);
+                            });
+                        }
+                        
+                        listEl.appendChild(li);
+                    });
+                } catch (err) {
+                    alert("Error fetching directory list: " + err.message);
+                }
+            }
+
+            async function changeDirectory(targetName) {
+                try {
+                    const res = await fetch("http://127.0.0.1:8000/change-directory", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            current_path: currentPath,
+                            target_name: targetName
+                        })
+                    });
+                    
+                    if (!res.ok)
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    
+                    const data = await res.json();
+                    currentPath = data.current_path;
+                    
+                    document.getElementById("currentPath").textContent = currentPath;
+                    
+                    const listEl = document.getElementById("dirList");
+                    listEl.innerHTML = "";
+                    
+                    data.entries.forEach((item) => {
+                        const li = document.createElement("li");
+                        li.className = `directory-item ${item.is_directory ? 'directory' : 'file'}`;
+                        
+                        const icon = document.createElement("span");
+                        icon.className = "icon";
+                        icon.textContent = item.is_directory ? "📁" : "📄";
+                        
+                        const name = document.createElement("span");
+                        name.textContent = item.name;
+                        
+                        li.appendChild(icon);
+                        li.appendChild(name);
+                        
+                        if (item.is_directory) {
+                            li.addEventListener("click", () => {
+                                changeDirectory(item.name);
+                            });
+                        }
+                        
+                        listEl.appendChild(li);
+                    });
+                } catch (err) {
+                    alert("Error changing directory: " + err.message);
+                }
+            }
+
+            document.getElementById("backBtn").addEventListener("click", () => {
+                changeDirectory("..");
+            });
+
+            document.getElementById("refreshBtn").addEventListener("click", () => {
+                loadDirectory(currentPath);
+            });
+
+            // Load home directory on page load
+            loadDirectory();
         </script>
     </body>
 </html>
