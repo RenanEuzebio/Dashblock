@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Dashblock</title>
+        <link rel="stylesheet" href="https://unpkg.com/xterm/css/xterm.css" />
+        <style>
+            :root {
+                --muted: #6b7280;
+                --text: #0f172a;
+                --muted-2: #9ca3af;
+                --ok: #16a34a;
+                --bad: #ef4444;
+                --bg: #f7f7fa;
+                --border: #e6e9ef;
+                --card: #ffffff;
+                --btn: #0b1220;
+                --btn2: #111827;
+                --btnfg: #fff;
+                --btnH: #09101a;
+                --accent: #06b6d4;
+            }
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --muted: #9aa4b2;
+                    --text: #e6eef6;
+                    --muted-2: #8b98a6;
+                    --ok: #57d27a;
+                    --bad: #ff6b6b;
+                    --bg: #071019;
+                    --border: #12242f;
+                    --card: #0b1420;
+                    --btn: #0f1720;
+                    --btn2: #07101a;
+                    --btnfg: #e8f0f6;
+                    --btnH: #09121c;
+                    --accent: #22d3ee;
+                }
+            }
+            html,
+            body {
+                height: 100%;
+            }
+            body {
+                font-family:
+                    system-ui,
+                    Segoe UI,
+                    Roboto,
+                    Arial,
+                    sans-serif;
+                margin: 16px auto;
+                max-width: 980px;
+                line-height: 1.5;
+                background: var(--bg);
+                color: var(--text);
+                padding: 0 12px 40px;
+            }
+            h1 {
+                margin: 0.2rem 0 0.8rem;
+                font-weight: 800;
+                letter-spacing: -0.02em;
+            }
+            #listView,
+            #worldView {
+                display: none;
+            }
+            .muted {
+                color: var(--muted);
+            }
+            .ok {
+                color: var(--ok);
+            }
+            .bad {
+                color: var(--bad);
+            }
+            button {
+                padding: 8px 12px;
+                border-radius: 10px;
+                border: 1px solid var(--border);
+                background: linear-gradient(180deg, var(--btn2), var(--btn));
+                color: var(--btnfg);
+                cursor: pointer;
+                transition:
+                    background 0.12s,
+                    transform 0.05s,
+                    box-shadow 0.12s;
+                font-weight: 600;
+            }
+            button:hover {
+                background: linear-gradient(180deg, var(--btn), var(--btnH));
+                box-shadow: 0 6px 18px rgba(2, 6, 23, 0.3);
+            }
+            button:active {
+                transform: translateY(1px);
+            }
+            .primary {
+                background: linear-gradient(180deg, var(--accent), #008da0);
+                color: #012024;
+                border-color: transparent;
+            }
+            #worlds {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+            }
+            .world-card {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                background: var(--card);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 12px 14px;
+                margin: 12px 0;
+                box-shadow: 0 2px 8px rgba(2, 6, 23, 0.06);
+            }
+            .world-card .name {
+                font-weight: 800;
+            }
+            .spacer {
+                flex: 1;
+            }
+            .pub {
+                white-space: nowrap;
+            }
+            /* Create tile */
+            .world-card.create {
+                justify-content: center;
+                gap: 10px;
+                min-height: 68px;
+                background: transparent;
+                border: 2px dashed var(--border);
+                color: var(--muted);
+                cursor: pointer;
+            }
+            .world-card.create:hover {
+                background: rgba(0, 0, 0, 0.03);
+            }
+            .create .plus {
+                font-size: 20px;
+                line-height: 1;
+            }
+            #mods {
+                padding-left: 20px;
+            }
+            #termWrap {
+                height: 320px;
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                background: rgba(0, 0, 0, 0.05);
+                overflow: hidden;
+            }
+            a {
+                color: inherit;
+                text-decoration: none;
+            }
+            a:hover {
+                text-decoration: underline;
+            }
+            .loading {
+                opacity: 0.7;
+                pointer-events: none;
+            }
+            .btnspin {
+                display: inline-block;
+                width: 1em;
+                text-align: center;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                from {
+                    transform: rotate(0);
+                }
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            dialog {
+                border: none;
+                border-radius: 12px;
+                padding: 18px;
+                background: var(--card);
+                color: var(--text);
+                box-shadow: 0 12px 40px rgba(2, 6, 23, 0.55);
+                max-width: 520px;
+            }
+            label {
+                display: block;
+                margin: 8px 0;
+                font-weight: 600;
+            }
+            input[type="text"],
+            input[type="number"],
+            select {
+                width: 100%;
+                padding: 8px 10px;
+                margin-top: 6px;
+                border-radius: 8px;
+                border: 1px solid var(--border);
+                background: rgba(255, 255, 255, 0.02);
+                color: var(--text);
+            }
+            menu {
+                display: flex;
+                gap: 8px;
+                justify-content: flex-end;
+                margin-top: 12px;
+            }
+            pre#setupOut {
+                margin-top: 10px;
+                color: var(--muted-2);
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Worlds</h1>
+
+        <!-- LIST -->
+        <div id="listView">
+            <ul id="worlds"></ul>
+        </div>
+
+        <!-- WORLD -->
+        <div id="worldView">
+            <p>
+                <button id="btnBack">Back</button>
+                <button id="btnSettings">Settings</button>
+                <button id="btnStartStop">Start</button>
+            </p>
+            <h3 id="worldTitle"></h3>
+            <p id="statusLine" class="muted">VPS: —</p>
+            <p id="proxyLine" class="muted">Public (proxy): —</p>
+            <h4>Mods</h4>
+            <ul id="mods"></ul>
+            <h4>Console</h4>
+            <div id="termWrap"></div>
+        </div>
+
+        <!-- SETTINGS -->
+        <dialog id="setupDialog">
+            <form method="dialog" id="setupForm">
+                <h3 id="setupTitle">Server setup</h3>
+                <label
+                    >World name:
+                    <input id="worldName" type="text" placeholder="my-world" />
+                </label>
+                <label
+                    >MC version:
+                    <select id="mcVersion"></select>
+                </label>
+                <label
+                    >RAM (GB):
+                    <input
+                        id="memGB"
+                        type="number"
+                        min="1"
+                        max="64"
+                        value="4"
+                    />
+                </label>
+                <label
+                    >MOTD:
+                    <input id="motd" type="text" value="A Minecraft Server" />
+                </label>
+                <label
+                    >online-mode:
+                    <select id="onlineMode">
+                        <option>true</option>
+                        <option>false</option>
+                    </select>
+                </label>
+                <menu>
+                    <button value="cancel">Cancel</button>
+                    <button id="btnSave" class="primary">Save</button>
+                </menu>
+                <pre id="setupOut" style="white-space: pre-wrap"></pre>
+            </form>
+        </dialog>
+
+        <script src="https://unpkg.com/xterm/lib/xterm.js"></script>
+        <script>
+            const API = "http://127.0.0.1:8000";
+            const $ = (id) => document.getElementById(id);
+            const listView = $("listView"),
+                worldView = $("worldView"),
+                worldsUl = $("worlds");
+            const btnBack = $("btnBack"),
+                btnSettings = $("btnSettings"),
+                btnStartStop = $("btnStartStop");
+            const worldTitle = $("worldTitle"),
+                statusLine = $("statusLine"),
+                proxyLine = $("proxyLine"),
+                modsUl = $("mods");
+            const dlg = $("setupDialog"),
+                setupTitle = $("setupTitle"),
+                worldName = $("worldName");
+            const mcVersion = $("mcVersion"),
+                memGB = $("memGB"),
+                motd = $("motd"),
+                onlineMode = $("onlineMode");
+            const setupOut = $("setupOut"),
+                btnSave = $("btnSave");
+
+            // xterm
+            const term = new Terminal({
+                convertEol: true,
+                fontFamily: "monospace",
+                fontSize: 12,
+            });
+            term.open($("termWrap"));
+
+            let currentWorld = null,
+                currentMeta = {},
+                currentCfg = {};
+            let timerStatus = null,
+                timerConsole = null,
+                logOffset = 0;
+
+            const setLoading = (btn, is, textWhile) => {
+                if (!btn) return;
+                if (is) {
+                    btn.dataset.prev = btn.textContent;
+                    btn.classList.add("loading");
+                    btn.disabled = true;
+                    btn.innerHTML = `<span class="btnspin">⏳</span> ${textWhile || btn.dataset.prev || ""}`;
+                } else {
+                    btn.classList.remove("loading");
+                    btn.disabled = false;
+                    if (btn.dataset.prev) btn.textContent = btn.dataset.prev;
+                }
+            };
+
+            const showList = () => {
+                listView.style.display = "block";
+                worldView.style.display = "none";
+            };
+            const showWorld = () => {
+                listView.style.display = "none";
+                worldView.style.display = "block";
+            };
+
+            // -------- Worlds list (includes create tile as last item) --------
+            async function loadWorlds() {
+                try {
+                    const r = await fetch(`${API}/dashblock/worlds`, {
+                        cache: "no-store",
+                    });
+                    const d = await r.json();
+                    if (!r.ok || !d.ok) {
+                        alert(d.detail || r.statusText);
+                        return;
+                    }
+                    worldsUl.innerHTML = "";
+
+                    (d.worlds || []).forEach((w) => {
+                        const li = document.createElement("li");
+                        li.className = "world-card";
+
+                        const nameLink = document.createElement("a");
+                        nameLink.href = "#";
+                        nameLink.textContent = w.name;
+                        nameLink.className = "name";
+                        nameLink.onclick = (e) => {
+                            e.preventDefault();
+                            openWorld(w.name);
+                        };
+
+                        const pub = document.createElement("span");
+                        pub.className = "muted pub";
+                        if (w.public_port) {
+                            pub.textContent = `${w.public_host || location.hostname}:${w.public_port}`;
+                        }
+
+                        const spacer = document.createElement("span");
+                        spacer.className = "spacer";
+
+                        const setBtn = document.createElement("button");
+                        setBtn.textContent = "Settings";
+                        setBtn.onclick = async () => {
+                            setLoading(setBtn, true, "Loading…");
+                            await preload(w.name);
+                            dlg.showModal();
+                            setLoading(setBtn, false);
+                        };
+
+                        const startBtn = document.createElement("button");
+                        startBtn.textContent = w.running ? "Stop" : "Start";
+                        startBtn.onclick = async () => {
+                            setLoading(
+                                startBtn,
+                                true,
+                                w.running ? "Stopping…" : "Starting…",
+                            );
+                            await fetch(
+                                `${API}/dashblock/worlds/${encodeURIComponent(w.name)}/${w.running ? "stop" : "start"}`,
+                                { method: "POST" },
+                            );
+                            await loadWorlds();
+                            if (
+                                currentWorld === w.name &&
+                                worldView.style.display !== "none"
+                            )
+                                updateStatus();
+                            setLoading(startBtn, false);
+                        };
+
+                        const delBtn = document.createElement("button");
+                        delBtn.textContent = "Delete";
+                        delBtn.onclick = async () => {
+                            if (!confirm(`Delete "${w.name}"?`)) return;
+                            setLoading(delBtn, true, "Deleting…");
+                            const rr = await fetch(
+                                `${API}/dashblock/worlds/${encodeURIComponent(w.name)}`,
+                                { method: "DELETE" },
+                            );
+                            const dd = await rr.json();
+                            if (!rr.ok || !dd.ok) {
+                                alert(dd.detail || rr.statusText);
+                            }
+                            await loadWorlds();
+                            if (currentWorld === w.name) {
+                                currentWorld = null;
+                                stopPolling();
+                                showList();
+                            }
+                            setLoading(delBtn, false);
+                        };
+
+                        li.append(
+                            nameLink,
+                            pub,
+                            spacer,
+                            setBtn,
+                            startBtn,
+                            delBtn,
+                        );
+                        worldsUl.appendChild(li);
+                    });
+
+                    // Create World tile (last)
+                    const createLi = document.createElement("li");
+                    createLi.className = "world-card create";
+                    createLi.tabIndex = 0;
+                    createLi.role = "button";
+                    createLi.innerHTML = `<span class="plus">＋</span><span>Create world</span>`;
+                    const openCreateTile = () => openCreate();
+                    createLi.onclick = openCreateTile;
+                    createLi.onkeydown = (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openCreateTile();
+                        }
+                    };
+                    worldsUl.appendChild(createLi);
+
+                    showList();
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            // -------- Versions --------
+            (async () => {
+                try {
+                    const r = await fetch(`${API}/dashblock/versions`);
+                    const d = await r.json();
+                    (d.versions || []).forEach((v) => {
+                        const o = document.createElement("option");
+                        o.value = v.version;
+                        o.textContent =
+                            v.version + (v.stable ? "" : " (snapshot)");
+                        mcVersion.appendChild(o);
+                    });
+                } catch {}
+            })();
+
+            // -------- Create / Edit --------
+            function openCreate() {
+                currentWorld = null;
+                setupTitle.textContent = "Create world";
+                worldName.disabled = false;
+                worldName.value = "";
+                memGB.value = 4;
+                motd.value = "A Minecraft Server";
+                onlineMode.value = "true";
+                setupOut.textContent = "";
+                dlg.showModal();
+            }
+            function openEdit() {
+                setupTitle.textContent = "Edit settings";
+                worldName.disabled = true;
+                worldName.value = currentWorld;
+                const mc =
+                    currentMeta.mc_version ||
+                    mcVersion.options[0]?.value ||
+                    "1.20.1";
+                [...mcVersion.options].forEach(
+                    (o) => (o.selected = o.value === mc),
+                );
+                const mem =
+                    parseInt(
+                        (currentMeta.xmx || "4G")
+                            .toUpperCase()
+                            .replace(/G$/, ""),
+                    ) || 4;
+                memGB.value = mem;
+                motd.value = currentCfg["motd"] || "A Minecraft Server";
+                onlineMode.value =
+                    (currentCfg["online-mode"] || "true") === "true"
+                        ? "true"
+                        : "false";
+                setupOut.textContent = "";
+            }
+            async function onSave(e) {
+                e.preventDefault();
+                const name = currentWorld || worldName.value.trim();
+                if (!name) {
+                    setupOut.textContent = "Enter a name.";
+                    return;
+                }
+                setLoading(btnSave, true, "Saving…");
+                try {
+                    if (!currentWorld) {
+                        const r = await fetch(
+                            `${API}/dashblock/worlds?name=${encodeURIComponent(name)}`,
+                            { method: "POST" },
+                        );
+                        const d = await r.json();
+                        if (!r.ok || !d.ok) {
+                            setupOut.textContent = d.detail || r.statusText;
+                            return;
+                        }
+                        currentWorld = name;
+                    }
+                    const p = new URLSearchParams({
+                        mc_version: mcVersion.value,
+                        mem_gb: memGB.value,
+                        motd: motd.value,
+                        online_mode: onlineMode.value,
+                    });
+                    const r = await fetch(
+                        `${API}/dashblock/worlds/${encodeURIComponent(currentWorld)}/setup?${p.toString()}`,
+                        { method: "POST" },
+                    );
+                    setupOut.textContent = r.ok ? "Saved." : `HTTP ${r.status}`;
+                    if (r.ok) {
+                        dlg.close();
+                        await loadWorlds();
+                    }
+                } finally {
+                    setLoading(btnSave, false);
+                }
+            }
+
+            // -------- World details --------
+            async function preload(name) {
+                const r = await fetch(
+                    `${API}/dashblock/worlds/${encodeURIComponent(name)}/details`,
+                    { cache: "no-store" },
+                );
+                const d = await r.json();
+                if (!r.ok || !d.ok) {
+                    alert(d.detail || r.statusText);
+                    return;
+                }
+                currentWorld = name;
+                currentMeta = d.meta || {};
+                currentCfg = d.config || {};
+            }
+            async function openWorld(name) {
+                setLoading(btnBack, true, "Opening…");
+                try {
+                    await preload(name);
+                    worldTitle.textContent = "World: " + name;
+                    const r = await fetch(
+                        `${API}/dashblock/worlds/${encodeURIComponent(name)}/details`,
+                    );
+                    const d = await r.json();
+                    modsUl.innerHTML = "";
+                    (d.mods || []).forEach((m) => {
+                        const li = document.createElement("li");
+                        li.textContent = m;
+                        modsUl.appendChild(li);
+                    });
+                    if ((d.mods || []).length === 0) {
+                        const li = document.createElement("li");
+                        li.textContent = "No Mods, install some?";
+                        modsUl.appendChild(li);
+                    }
+                    renderPublish(d.publish);
+                    term.clear();
+                    term.write("(waiting for output…)\r\n");
+                    logOffset = 0;
+                    showWorld();
+                    startPolling();
+                } finally {
+                    setLoading(btnBack, false);
+                }
+            }
+            function renderPublish(p) {
+                if (p && p.active) {
+                    proxyLine.innerHTML = `Public (proxy): <strong>${p.public_host}:${p.public_port}</strong>`;
+                    proxyLine.classList.remove("muted");
+                } else {
+                    proxyLine.textContent = "Public (proxy): setting up…";
+                    proxyLine.classList.add("muted");
+                }
+            }
+
+            // -------- Start/Stop --------
+            async function onStartStop() {
+                if (!currentWorld) return;
+                setLoading(
+                    btnStartStop,
+                    true,
+                    btnStartStop.textContent === "Start"
+                        ? "Starting…"
+                        : "Stopping…",
+                );
+                try {
+                    const s = await (
+                        await fetch(
+                            `${API}/dashblock/worlds/${encodeURIComponent(currentWorld)}/status`,
+                        )
+                    ).json();
+                    await fetch(
+                        `${API}/dashblock/worlds/${encodeURIComponent(currentWorld)}/${s.running ? "stop" : "start"}`,
+                        { method: "POST" },
+                    );
+                    await updateStatus();
+                    await updateConsole();
+                    await loadWorlds();
+                } finally {
+                    setLoading(btnStartStop, false);
+                }
+            }
+
+            // -------- Polling --------
+            function startPolling() {
+                stopPolling();
+                updateStatus();
+                updateConsole(true);
+                timerStatus = setInterval(updateStatus, 1500);
+                timerConsole = setInterval(updateConsole, 1000);
+            }
+            function stopPolling() {
+                if (timerStatus) {
+                    clearInterval(timerStatus);
+                    timerStatus = null;
+                }
+                if (timerConsole) {
+                    clearInterval(timerConsole);
+                    timerConsole = null;
+                }
+            }
+
+            async function updateStatus() {
+                if (!currentWorld) return;
+                const r = await fetch(
+                    `${API}/dashblock/worlds/${encodeURIComponent(currentWorld)}/status`,
+                    { cache: "no-store" },
+                );
+                const d = await r.json();
+                if (!r.ok || !d.ok) return;
+                statusLine.innerHTML =
+                    `VPS: <strong>${d.ip}:${d.port}</strong> — ` +
+                    (d.running
+                        ? `<span class="ok">running (pid ${d.pid})</span>`
+                        : `<span class="bad">stopped</span>`) +
+                    " — " +
+                    (d.listening
+                        ? `<span class="ok">listening</span>`
+                        : `<span class="bad">not listening</span>`);
+                renderPublish(d.publish);
+                btnStartStop.textContent = d.running ? "Stop" : "Start";
+            }
+
+            // Incremental console (no flicker)
+            async function updateConsole(initial = false) {
+                if (!currentWorld) return;
+                const params = new URLSearchParams({
+                    offset: String(logOffset || 0),
+                });
+                if (initial) params.set("initial_bytes", "16384");
+                const r = await fetch(
+                    `${API}/dashblock/worlds/${encodeURIComponent(currentWorld)}/console?${params.toString()}`,
+                    { cache: "no-store" },
+                );
+                const d = await r.json();
+                if (!r.ok || !d.ok) return;
+                if (typeof d.chunk === "string" && d.chunk.length) {
+                    term.write(d.chunk.replace(/\n/g, "\r\n"));
+                }
+                logOffset = d.offset ?? logOffset;
+            }
+
+            // handlers
+            btnBack.onclick = () => {
+                stopPolling();
+                showList();
+            };
+            btnSettings.onclick = () => {
+                if (!currentWorld) return;
+                openEdit();
+                dlg.showModal();
+            };
+            btnStartStop.onclick = onStartStop;
+            btnSave.onclick = onSave;
+
+            // init
+            loadWorlds();
+        </script>
+    </body>
+</html>
